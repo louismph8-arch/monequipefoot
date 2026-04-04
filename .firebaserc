@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "monequipefoot-2e530"
+  },
+  "targets": {
+    "monequipefoot-2e530": {
+      "hosting": {
+        "ojbeziers": ["ojbeziers"]
+      }
+    }
+  }
+}
