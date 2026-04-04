@@ -570,6 +570,34 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
   <div class="splash-spin"></div>
 </div>
 
+<!-- VERIFY EMAIL -->
+<div id="verify-screen" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);
+  display:none;align-items:center;justify-content:center;padding:20px;">
+  <div class="auth-card">
+    <div class="auth-hero">
+      <img src="logo.png" alt="OJB" onerror="this.style.display='none'">
+      <h1>Vérifie ton email</h1>
+      <p>Un lien de confirmation t'a été envoyé</p>
+    </div>
+    <div class="auth-body" style="text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">📬</div>
+      <p style="font-size:14px;color:var(--txt2);margin-bottom:6px">
+        Consulte ta boîte mail et clique sur le lien de confirmation.
+      </p>
+      <p id="verify-email-addr" style="font-size:13px;font-weight:700;color:var(--b2);margin-bottom:20px"></p>
+      <button class="btn-b block" onclick="checkVerified()">
+        <span class="ico">refresh</span> J'ai confirmé mon email
+      </button>
+      <button class="btn-ghost" onclick="resendVerif()" style="width:100%;margin-top:10px">
+        Renvoyer l'email
+      </button>
+      <button class="btn-danger-t" onclick="doLogout()" style="margin:12px auto 0">
+        <span class="ico">logout</span> Se déconnecter
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- AUTH -->
 <div id="auth" style="display:none">
   <div class="auth-card">
@@ -998,7 +1026,7 @@ function sendEmail(toEmail, toName, subject, message){
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, setDoc, getDoc, query, orderBy, serverTimestamp, Timestamp, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
@@ -1096,6 +1124,16 @@ onAuthStateChanged(auth,async user=>{
   document.getElementById('splash').style.display='none';
   if(user){
     me=user;
+    // Vérification email obligatoire (sauf admin)
+    if(!user.emailVerified && user.email!==ADMIN){
+      document.getElementById('auth').style.display='none';
+      document.getElementById('app').style.display='none';
+      const vs=document.getElementById('verify-screen');
+      vs.style.display='flex';
+      document.getElementById('verify-email-addr').textContent=user.email;
+      return;
+    }
+    document.getElementById('verify-screen').style.display='none';
     document.getElementById('auth').style.display='none';
     document.getElementById('app').style.display='block';
     try{
@@ -1129,6 +1167,7 @@ onAuthStateChanged(auth,async user=>{
     }).catch(()=>{});
   }else{
     me=null;myRoles=['joueur'];isAdmin=false;currentTeamId=null;
+    document.getElementById('verify-screen').style.display='none';
     document.getElementById('auth').style.display='flex';
     document.getElementById('app').style.display='none';
     document.getElementById('splash').style.display='none';
@@ -1197,9 +1236,31 @@ window.doRegister=async()=>{
       display_name:name,email,photo_url:'',
       roles:['joueur'],teamId,position:'',jerseyNumber:''
     });
+    await sendEmailVerification(c.user,{
+      url: window.location.href,
+      handleCodeInApp: false
+    });
+    toast('Email de confirmation envoyé à '+email);
   }catch(e){showErr(fErr(e.code));}
 };
 window.doLogout=async()=>{await signOut(auth);};
+window.checkVerified=async()=>{
+  if(!me)return;
+  await me.reload();
+  if(me.emailVerified){
+    document.getElementById('verify-screen').style.display='none';
+    window.location.reload();
+  }else{
+    toast('Email pas encore confirmé — vérifie ta boîte mail',false);
+  }
+};
+window.resendVerif=async()=>{
+  if(!me)return;
+  try{
+    await sendEmailVerification(me,{url:window.location.href,handleCodeInApp:false});
+    toast('Email renvoyé à '+me.email);
+  }catch(e){toast('Attends 1 minute avant de renvoyer',false);}
+};
 window.switchTab=tab=>{
   document.getElementById('tab-login').style.display=tab==='login'?'block':'none';
   document.getElementById('tab-register').style.display=tab==='register'?'block':'none';
