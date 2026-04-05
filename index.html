@@ -1090,7 +1090,7 @@ function sendEmail(toEmail, toName, subject, message){
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, setDoc, getDoc, query, orderBy, serverTimestamp, Timestamp, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref as sRef, uploadBytes, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const ADMIN = 'louismph8@gmail.com';
 
@@ -2262,14 +2262,9 @@ window.saveProfile=async()=>{
   }catch(e){toast('Erreur : '+e.message,false);}
 };
 function uploadWithTimeout(storageRef,file,timeoutMs=30000){
-  return new Promise((resolve,reject)=>{
-    const task=uploadBytesResumable(storageRef,file);
-    const timer=setTimeout(()=>{task.cancel();reject(new Error('Délai dépassé. Vérifie ta connexion.'));},timeoutMs);
-    task.on('state_changed',null,
-      err=>{clearTimeout(timer);reject(err);},
-      ()=>{clearTimeout(timer);resolve(task.snapshot);}
-    );
-  });
+  const upload=uploadBytes(storageRef,file);
+  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Délai dépassé. Vérifie ta connexion.')),timeoutMs));
+  return Promise.race([upload,timeout]);
 }
 window.uploadPhoto=async input=>{
   if(!input.files[0]||!me)return;
