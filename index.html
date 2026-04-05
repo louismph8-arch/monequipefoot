@@ -572,24 +572,31 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
 
 <!-- VERIFY EMAIL -->
 <div id="verify-screen" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);
-  display:none;align-items:center;justify-content:center;padding:20px;">
+  align-items:center;justify-content:center;padding:20px;">
   <div class="auth-card">
     <div class="auth-hero">
       <img src="logo.png" alt="OJB" onerror="this.style.display='none'">
       <h1>Vérifie ton email</h1>
-      <p>Un lien de confirmation t'a été envoyé</p>
+      <p>Un code à 6 chiffres t'a été envoyé</p>
     </div>
     <div class="auth-body" style="text-align:center">
       <div style="font-size:48px;margin-bottom:12px">📬</div>
-      <p style="font-size:14px;color:var(--txt2);margin-bottom:6px">
-        Consulte ta boîte mail et clique sur le lien de confirmation.
+      <p style="font-size:14px;color:var(--txt2);margin-bottom:4px">
+        Saisis le code reçu à :
       </p>
-      <p id="verify-email-addr" style="font-size:13px;font-weight:700;color:var(--b2);margin-bottom:20px"></p>
-      <button class="btn-b block" onclick="checkVerified()">
-        <span class="ico">refresh</span> J'ai confirmé mon email
+      <p id="verify-email-addr" style="font-size:13px;font-weight:700;color:var(--b2);margin-bottom:16px"></p>
+      <input id="verif-code-input" type="text" inputmode="numeric" maxlength="6"
+        placeholder="123456"
+        style="width:100%;padding:14px;font-size:24px;font-weight:700;text-align:center;
+               letter-spacing:8px;border:2px solid var(--brd);border-radius:12px;
+               font-family:'Inter',sans-serif;color:var(--txt);background:var(--surf);
+               outline:none;margin-bottom:14px;"
+        oninput="this.value=this.value.replace(/\D/g,'')">
+      <button class="btn-b block" onclick="verifyCode()">
+        <span class="ico">check_circle</span> Confirmer le code
       </button>
       <button class="btn-ghost" onclick="resendVerif()" style="width:100%;margin-top:10px">
-        Renvoyer l'email
+        <span class="ico">send</span> Renvoyer le code
       </button>
       <button class="btn-danger-t" onclick="doLogout()" style="margin:12px auto 0">
         <span class="ico">logout</span> Se déconnecter
@@ -747,6 +754,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
   <!-- ═══ PAGE EFFECTIF ═══ -->
   <div class="page" id="page-equipe">
     <div class="pg-hd"><h2>Effectif</h2><p>Joueurs de l'Olympique Jeunesse Béziers</p></div>
+    <div id="purge-btn-wrap" style="display:none;padding:0 16px 12px">
+      <button onclick="purgeAllMembers()" style="width:100%;padding:11px;background:#C0392B;border:none;border-radius:10px;color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <span class="ico">delete_sweep</span> Supprimer tous les membres (sauf moi)
+      </button>
+    </div>
     <div class="squad-grid" id="squad-grid"><div class="loading"><div class="spin"></div> Chargement...</div></div>
   </div>
 
@@ -754,6 +766,19 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
   <div class="page" id="page-stats">
     <div class="pg-hd"><h2>Statistiques</h2><p>Bilan de la saison</p></div>
     <div id="stats-content"><div class="loading"><div class="spin"></div> Chargement...</div></div>
+  </div>
+
+  <!-- ═══ PAGE ENTRAÎNEMENTS ═══ -->
+  <div class="page" id="page-entrainement">
+    <div class="pg-hd"><h2>Entraînements</h2><p>Planning et présences</p></div>
+    <div class="info-banner" id="training-info">
+      <span class="ico">info</span>
+      Seul le coach peut ajouter des entraînements. Indique ta disponibilité ci-dessous.
+    </div>
+    <div class="sec-lbl">À venir</div>
+    <div class="match-list" id="upcoming-trainings-list"><div class="loading"><div class="spin"></div> Chargement...</div></div>
+    <div class="sec-lbl" style="margin-top:20px">Passés</div>
+    <div class="match-list" id="past-trainings-list"></div>
   </div>
 
   <!-- ═══ PAGE MOI ═══ -->
@@ -778,6 +803,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
       <div class="stat-mini"><span class="stat-mini-n" id="sm-pres" style="color:var(--g1)">—</span><span class="stat-mini-l">Présences</span></div>
       <div class="stat-mini"><span class="stat-mini-n" id="sm-abs" style="color:var(--r1)">—</span><span class="stat-mini-l">Absences</span></div>
       <div class="stat-mini"><span class="stat-mini-n" id="sm-convoc" style="color:var(--p1)">—</span><span class="stat-mini-l">Convocs</span></div>
+    </div>
+    <div class="stats-row4" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px">
+      <div class="stat-mini"><span class="stat-mini-n" id="sm-train" style="color:var(--b2)">—</span><span class="stat-mini-l">Entraînements</span></div>
+      <div class="stat-mini"><span class="stat-mini-n" id="sm-train-pres" style="color:var(--g1)">—</span><span class="stat-mini-l">Présences entr.</span></div>
     </div>
 
     <div class="convoc-notif" id="convoc-notif" style="display:none">
@@ -865,6 +894,36 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
     </div>
   </div>
 
+  <!-- ═══ MODAL: AJOUTER ENTRAÎNEMENT ═══ -->
+  <div class="scrim" id="modal-training-add" onclick="if(event.target===this)closeModal('modal-training-add')">
+    <div class="sheet">
+      <div class="sh-handle"></div>
+      <div class="sh-title">Nouvel entraînement</div>
+      <div class="form-2">
+        <div class="tf"><label>Date et heure</label>
+          <input type="datetime-local" id="t-date">
+        </div>
+        <div class="tf"><label>Lieu</label>
+          <input type="text" id="t-loc" placeholder="Terrain n°2">
+        </div>
+      </div>
+      <div class="tf"><label>Description (optionnel)</label>
+        <input type="text" id="t-desc" placeholder="Ex : Séance tactique, fitness…">
+      </div>
+      <button class="btn-b block" onclick="addTraining()">
+        <span class="ico">fitness_center</span> Enregistrer l'entraînement
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: DETAIL ENTRAÎNEMENT ═══ -->
+  <div class="scrim" id="modal-training-detail" onclick="if(event.target===this)closeModal('modal-training-detail')">
+    <div class="sheet">
+      <div class="sh-handle"></div>
+      <div id="training-detail-content"></div>
+    </div>
+  </div>
+
   <!-- ═══ MODAL: AJOUTER POST ═══ -->
   <div class="scrim" id="modal-post" onclick="if(event.target===this)closeModal('modal-post')">
     <div class="sheet">
@@ -945,6 +1004,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-se
       <button class="ditem" id="dnav-stats" onclick="showPage('stats')">
         <span class="ico">leaderboard</span> Statistiques
       </button>
+      <button class="ditem" id="dnav-entrainement" onclick="showPage('entrainement')">
+        <span class="ico">fitness_center</span> Entraînements
+      </button>
       <div class="drw-div"></div>
       <button class="ditem" id="dnav-equipes" onclick="showPage('equipes')" style="display:none">
         <span class="ico">shield</span> Mes équipes
@@ -1010,9 +1072,9 @@ if ('serviceWorker' in navigator) {
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 // ⚠️ Remplis ces valeurs depuis emailjs.com > Account > API Keys et Email Services
-const EMAILJS_PUBLIC_KEY  = 'VOTRE_PUBLIC_KEY';
-const EMAILJS_SERVICE_ID  = 'VOTRE_SERVICE_ID';
-const EMAILJS_TEMPLATE_ID = 'VOTRE_TEMPLATE_ID'; // template: {{to_email}}, {{to_name}}, {{subject}}, {{message}}
+const EMAILJS_PUBLIC_KEY  = '1AtW5ID5t2wLX-vuc';
+const EMAILJS_SERVICE_ID  = 'service_q1clsah';
+const EMAILJS_TEMPLATE_ID = 'template_iwft7gs'; // template: {{to_email}}, {{to_name}}, {{subject}}, {{message}}
 if(EMAILJS_PUBLIC_KEY !== 'VOTRE_PUBLIC_KEY'){
   emailjs.init({publicKey: EMAILJS_PUBLIC_KEY});
 }
@@ -1026,9 +1088,9 @@ function sendEmail(toEmail, toName, subject, message){
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, setDoc, getDoc, query, orderBy, serverTimestamp, Timestamp, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, addDoc, getDocs, onSnapshot, doc, setDoc, getDoc, query, orderBy, serverTimestamp, Timestamp, updateDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getStorage, ref as sRef, uploadBytes, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const ADMIN = 'louismph8@gmail.com';
 
@@ -1046,6 +1108,7 @@ let me=null, myRoles=['joueur'], isAdmin=false;
 let allMatchs=[], chatUnsub=null, postUnsub=null, curPage='matchs';
 let notifs=JSON.parse(localStorage.getItem('ojb_n')||'[]');
 let pollOptCount=2, currentMatchId=null, currentMatch=null;
+let allTrainings=[], currentTrainingId=null;
 let allTeams=[], currentTeamId=localStorage.getItem('ojb_team')||null;
 let rolesEditUid=null;
 const ALL_ROLES=[
@@ -1124,8 +1187,10 @@ onAuthStateChanged(auth,async user=>{
   document.getElementById('splash').style.display='none';
   if(user){
     me=user;
-    // Vérification email obligatoire (sauf admin)
-    if(!user.emailVerified && user.email!==ADMIN){
+    // Vérification email — basée sur le champ Firestore (pas Firebase emailVerified)
+    const sVerif=await getDoc(doc(db,'users',user.uid));
+    const dVerif=sVerif.exists()?sVerif.data():{};
+    if(!dVerif.emailVerified && user.email!==ADMIN){
       document.getElementById('auth').style.display='none';
       document.getElementById('app').style.display='none';
       const vs=document.getElementById('verify-screen');
@@ -1197,16 +1262,18 @@ function applyRole(){
   document.getElementById('player-info').style.display=c?'none':'flex';
   document.getElementById('poll-btn').style.display=c?'flex':'none';
   document.getElementById('clear-chat-btn').style.display=c?'block':'none';
+  document.getElementById('purge-btn-wrap').style.display=isAdmin?'block':'none';
   updateFab();
 }
 function updateFab(){
   const fab=document.getElementById('fab');
-  const show=isStaff()&&(curPage==='matchs'||curPage==='actu');
+  const show=isStaff()&&(curPage==='matchs'||curPage==='actu'||curPage==='entrainement');
   fab.style.display=show?'flex':'none';
 }
 window.fabAction=()=>{
   if(curPage==='matchs')openModal('modal-match-add');
   else if(curPage==='actu')openModal('modal-post');
+  else if(curPage==='entrainement')openModal('modal-training-add');
 };
 
 // ── AUTH ACTIONS ──────────────────────────────────────────
@@ -1232,34 +1299,41 @@ window.doRegister=async()=>{
       if(!tSnap.empty){teamId=tSnap.docs[0].id;toast('Équipe rejointe !');}
       else{showErr('Code d\'équipe invalide');await c.user.delete();return;}
     }
+    const verifCode=(Math.floor(100000+Math.random()*900000)).toString();
+    const verifExpiry=Date.now()+10*60*1000; // 10 minutes
     await setDoc(doc(db,'users',c.user.uid),{
       display_name:name,email,photo_url:'',
-      roles:['joueur'],teamId,position:'',jerseyNumber:''
+      roles:['joueur'],teamId,position:'',jerseyNumber:'',
+      emailVerified:false,verifCode,verifExpiry
     });
-    await sendEmailVerification(c.user,{
-      url: window.location.href,
-      handleCodeInApp: false
-    });
-    toast('Email de confirmation envoyé à '+email);
+    await sendEmail(email,name,'Code de vérification OJ Béziers',
+      `Bonjour ${name},\n\nTon code de vérification est :\n\n${verifCode}\n\nIl expire dans 10 minutes.\n\n— OJ Béziers`);
+    toast('Code de vérification envoyé à '+email);
   }catch(e){showErr(fErr(e.code));}
 };
 window.doLogout=async()=>{await signOut(auth);};
-window.checkVerified=async()=>{
+window.verifyCode=async()=>{
   if(!me)return;
-  await me.reload();
-  if(me.emailVerified){
-    document.getElementById('verify-screen').style.display='none';
-    window.location.reload();
-  }else{
-    toast('Email pas encore confirmé — vérifie ta boîte mail',false);
-  }
+  const input=document.getElementById('verif-code-input').value.trim();
+  if(!input||input.length!==6){toast('Saisis le code à 6 chiffres',false);return;}
+  const s=await getDoc(doc(db,'users',me.uid));
+  const d=s.exists()?s.data():{};
+  if(Date.now()>d.verifExpiry){toast('Code expiré — renvoie un nouveau code',false);return;}
+  if(d.verifCode!==input){toast('Code incorrect',false);return;}
+  await updateDoc(doc(db,'users',me.uid),{emailVerified:true,verifCode:deleteField(),verifExpiry:deleteField()});
+  document.getElementById('verify-screen').style.display='none';
+  window.location.reload();
 };
 window.resendVerif=async()=>{
   if(!me)return;
   try{
-    await sendEmailVerification(me,{url:window.location.href,handleCodeInApp:false});
-    toast('Email renvoyé à '+me.email);
-  }catch(e){toast('Attends 1 minute avant de renvoyer',false);}
+    const code=(Math.floor(100000+Math.random()*900000)).toString();
+    const expiry=Date.now()+10*60*1000;
+    await updateDoc(doc(db,'users',me.uid),{verifCode:code,verifExpiry:expiry});
+    await sendEmail(me.email,me.displayName||me.email,'Code de vérification OJ Béziers',
+      `Ton code de vérification est :\n\n${code}\n\nIl expire dans 10 minutes.\n\n— OJ Béziers`);
+    toast('Nouveau code envoyé à '+me.email);
+  }catch(e){toast('Erreur lors de l\'envoi',false);}
 };
 window.switchTab=tab=>{
   document.getElementById('tab-login').style.display=tab==='login'?'block':'none';
@@ -1579,6 +1653,153 @@ async function checkConvocs(){
   }catch(e){}
 }
 
+// ── ENTRAÎNEMENTS ─────────────────────────────────────────
+async function loadTrainings(){
+  try{
+    const q=currentTeamId
+      ? query(collection(db,'trainings'),where('teamId','==',currentTeamId),orderBy('date','asc'))
+      : query(collection(db,'trainings'),orderBy('date','asc'));
+    const snap=await getDocs(q);
+    allTrainings=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderTrainings();
+  }catch(e){console.error(e);}
+}
+function renderTrainings(){
+  const now=new Date();
+  const upcoming=allTrainings.filter(t=>t.date&&(t.date.toDate?t.date.toDate():new Date(t.date))>=now);
+  const past=allTrainings.filter(t=>t.date&&(t.date.toDate?t.date.toDate():new Date(t.date))<now);
+  const upEl=document.getElementById('upcoming-trainings-list');
+  if(!upcoming.length){upEl.innerHTML='<p style="font-size:13px;color:var(--txt3);padding:12px 0">Aucun entraînement prévu</p>';}
+  else{upEl.innerHTML=upcoming.map(t=>renderTrainingCard(t,false)).join('');}
+  const pastEl=document.getElementById('past-trainings-list');
+  if(!past.length){pastEl.innerHTML='';}
+  else{pastEl.innerHTML=past.map(t=>renderTrainingCard(t,true)).join('');}
+  upcoming.forEach(t=>{loadTrainingPresCount(t.id);loadMyTrainingPres(t.id);});
+}
+function renderTrainingCard(t,done){
+  const dt=t.date?fmtD(t.date.toDate?t.date.toDate():new Date(t.date)):'—';
+  return `
+  <div class="mc" onclick="openTrainingDetail('${t.id}')">
+    <div class="mc-date-top">
+      <span class="mc-dt"><span class="ico">calendar_today</span>${dt}</span>
+      ${isAdmin?`<button class="del-btn" onclick="event.stopPropagation();deleteTraining('${t.id}')" title="Supprimer"><span class="ico">delete</span></button>`:''}
+    </div>
+    <div style="padding:6px 0 4px;display:flex;align-items:center;gap:8px">
+      <span class="ico" style="color:var(--b2);font-size:20px">fitness_center</span>
+      <div>
+        <div style="font-weight:700;font-size:15px">Entraînement</div>
+        ${t.location?`<div style="font-size:12px;color:var(--txt3)">${esc(t.location)}</div>`:''}
+      </div>
+    </div>
+    ${t.description?`<div class="mc-desc c-blue">${esc(t.description)}</div>`:''}
+    ${!done?`<div class="mc-actions">
+      <button class="ob ob-g" id="btp-${t.id}" onclick="event.stopPropagation();setTrainingPresence('${t.id}','present')">✓ Présent</button>
+      <button class="ob ob-r" id="bta-${t.id}" onclick="event.stopPropagation();setTrainingPresence('${t.id}','absent')">✗ Absent</button>
+      <div class="pc" id="tpc-${t.id}"><span class="ico">group</span> —</div>
+    </div>`:''}
+  </div>`;
+}
+window.addTraining=async()=>{
+  if(!isStaff()){toast('Accès refusé',false);return;}
+  const dt=document.getElementById('t-date').value;
+  const loc=document.getElementById('t-loc').value.trim();
+  const desc=document.getElementById('t-desc').value.trim();
+  if(!dt){toast('Choisis une date',false);return;}
+  try{
+    await addDoc(collection(db,'trainings'),{
+      date:Timestamp.fromDate(new Date(dt)),
+      location:loc,description:desc,
+      addedBy:me.uid,teamId:currentTeamId||'',
+      timestamp:serverTimestamp()
+    });
+    ['t-date','t-loc','t-desc'].forEach(id=>document.getElementById(id).value='');
+    toast('Entraînement ajouté');closeModal('modal-training-add');
+    loadTrainings();
+  }catch(e){toast('Erreur : '+e.message,false);}
+};
+window.openTrainingDetail=async id=>{
+  currentTrainingId=id;
+  const t=allTrainings.find(x=>x.id===id);
+  if(!t)return;
+  const dt=t.date?fmtD(t.date.toDate?t.date.toDate():new Date(t.date)):'—';
+  const snap=await getDocs(collection(db,'users'));
+  const uMap={};snap.docs.forEach(d=>uMap[d.id]=d.data());
+  let html=`
+  <div style="padding:6px 0 16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span class="ico" style="color:var(--b2);font-size:28px">fitness_center</span>
+      <div>
+        <div style="font-size:18px;font-weight:800">Entraînement</div>
+        <div style="font-size:13px;color:var(--txt3)">${dt}</div>
+      </div>
+    </div>
+    ${t.location?`<div style="font-size:13px;color:var(--txt2);margin-bottom:6px"><span class="ico" style="font-size:14px">location_on</span> ${esc(t.location)}</div>`:''}
+    ${t.description?`<div class="mc-desc c-blue">${esc(t.description)}</div>`:''}
+  </div>`;
+  html+=`<div class="sec-lbl" style="margin-top:4px">Présences</div>`;
+  const presSnap=await getDocs(collection(db,'training_presences'));
+  const entries=presSnap.docs.filter(d=>d.data().trainingId===id).map(d=>d.data());
+  entries.sort((a,b)=>['present','absent'].indexOf(a.status)-['present','absent'].indexOf(b.status));
+  if(entries.length){
+    html+=`<div class="pres-list" style="max-height:200px;overflow-y:auto">`;
+    entries.forEach(e=>{
+      const u=uMap[e.userId]||{};
+      const name=u.display_name||e.userId.slice(0,8);
+      const ini=name.slice(0,2).toUpperCase();
+      const bg=u.photo_url?'transparent':nameColor(name);
+      const sc=e.status==='present'?'s-y':e.status==='absent'?'s-n':'s-w';
+      const st=e.status==='present'?'✓ Présent':e.status==='absent'?'✗ Absent':'En attente';
+      html+=`
+      <div class="pres-row">
+        <div class="pres-av" style="background:${bg}">${u.photo_url?`<img src="${u.photo_url}" alt="">`:ini}</div>
+        <div class="pres-info"><div class="pres-name">${esc(name)}</div></div>
+        <span class="status-chip ${sc}">${st}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }else{html+=`<p style="font-size:13px;color:var(--txt3)">Aucune réponse</p>`;}
+  if(isAdmin){
+    html+=`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--brd2)">
+      <button class="btn-danger-t" onclick="deleteTraining('${id}')">
+        <span class="ico">delete</span> Supprimer cet entraînement
+      </button>
+    </div>`;
+  }
+  document.getElementById('training-detail-content').innerHTML=html;
+  openModal('modal-training-detail');
+};
+window.deleteTraining=async id=>{
+  if(!isAdmin){toast('Accès refusé',false);return;}
+  if(!confirm('Supprimer cet entraînement ?'))return;
+  await deleteDoc(doc(db,'trainings',id));
+  closeModal('modal-training-detail');
+  toast('Entraînement supprimé');
+  loadTrainings();
+};
+window.setTrainingPresence=async(trainingId,status)=>{
+  if(!me)return;
+  await setDoc(doc(db,'training_presences',`${me.uid}_${trainingId}`),{trainingId,userId:me.uid,status,timestamp:serverTimestamp()});
+  document.getElementById(`btp-${trainingId}`)?.classList.toggle('on',status==='present');
+  document.getElementById(`bta-${trainingId}`)?.classList.toggle('on',status==='absent');
+  loadTrainingPresCount(trainingId);
+  toast(status==='present'?'Présence confirmée':'Absence enregistrée');
+};
+async function loadMyTrainingPres(trainingId){
+  if(!me)return;
+  const s=await getDoc(doc(db,'training_presences',`${me.uid}_${trainingId}`));
+  if(s.exists()){
+    const st=s.data().status;
+    document.getElementById(`btp-${trainingId}`)?.classList.toggle('on',st==='present');
+    document.getElementById(`bta-${trainingId}`)?.classList.toggle('on',st==='absent');
+  }
+}
+async function loadTrainingPresCount(trainingId){
+  const s=await getDocs(collection(db,'training_presences'));
+  const n=s.docs.filter(d=>d.data().trainingId===trainingId&&d.data().status==='present').length;
+  const el=document.getElementById(`tpc-${trainingId}`);
+  if(el)el.innerHTML=`<span class="ico" style="color:var(--b2)">group</span> ${n} présent${n>1?'s':''}`;
+}
+
 // ── CHAT ──────────────────────────────────────────────────
 function listenChat(){
   const q=currentTeamId
@@ -1699,11 +1920,14 @@ window.sendChatPhoto=async input=>{
     const uSnap=await getDoc(doc(db,'users',me.uid));
     const senderPhoto=uSnap.exists()?uSnap.data().photo_url||'':'';
     const r=sRef(storage,`chat/${Date.now()}_${me.uid}`);
-    await uploadBytes(r,input.files[0]);
+    await uploadWithTimeout(r,input.files[0]);
     const url=await getDownloadURL(r);
-    await addDoc(collection(db,'messages'),{type:'photo',photoUrl:url,senderId:me.uid,senderName:me.displayName||me.email.split('@')[0],senderPhoto,timestamp:serverTimestamp()});
+    await addDoc(collection(db,'messages'),{type:'photo',photoUrl:url,senderId:me.uid,senderName:me.displayName||me.email.split('@')[0],senderPhoto,teamId:currentTeamId||'',timestamp:serverTimestamp()});
     input.value='';
-  }catch(e){toast('Erreur upload : '+e.message,false);}
+  }catch(e){
+    const msg=e.code==='storage/unauthorized'?'Accès refusé (règles Storage)':e.message;
+    toast('Erreur upload : '+msg,false);
+  }
 };
 
 // Polls
@@ -1811,9 +2035,12 @@ window.addPost=async()=>{
   if(photoInput.files[0]){
     try{
       const r=sRef(storage,`posts/${Date.now()}_${me.uid}`);
-      await uploadBytes(r,photoInput.files[0]);
+      await uploadWithTimeout(r,photoInput.files[0]);
       photoUrl=await getDownloadURL(r);
-    }catch(e){toast('Erreur upload photo',false);return;}
+    }catch(e){
+      const errMsg=e.code==='storage/unauthorized'?'Accès refusé (règles Storage)':e.message;
+      toast('Erreur upload photo : '+errMsg,false);return;
+    }
   }
   if(!content&&!photoUrl){toast('Écris quelque chose ou ajoute une photo',false);return;}
   const userDoc=await getDoc(doc(db,'users',me.uid));
@@ -1897,6 +2124,17 @@ window.deleteMember=async(uid,name)=>{
   if(!confirm(`Supprimer ${name} de l'effectif ?`))return;
   await deleteDoc(doc(db,'users',uid));
   toast(`${name} supprimé`);
+  loadSquad();
+};
+
+window.purgeAllMembers=async()=>{
+  if(!isAdmin||!me){toast('Accès refusé',false);return;}
+  if(!confirm('Supprimer TOUS les membres sauf toi ? Cette action est irréversible.'))return;
+  const snap=await getDocs(collection(db,'users'));
+  const batch=writeBatch(db);
+  snap.docs.forEach(d=>{if(d.id!==me.uid)batch.delete(d.ref);});
+  await batch.commit();
+  toast('Tous les membres ont été supprimés');
   loadSquad();
 };
 
@@ -2001,6 +2239,12 @@ async function loadProfile(){
     document.getElementById('sm-convoc').textContent=myConvocs;
     checkConvocs();
   }catch(e){}
+  try{
+    const trainSnap=await getDocs(collection(db,'training_presences'));
+    const myTrains=trainSnap.docs.filter(d=>d.data().userId===me.uid).map(d=>d.data());
+    document.getElementById('sm-train').textContent=allTrainings.length;
+    document.getElementById('sm-train-pres').textContent=myTrains.filter(p=>p.status==='present').length;
+  }catch(e){}
 }
 window.saveProfile=async()=>{
   if(!me)return;
@@ -2017,19 +2261,36 @@ window.saveProfile=async()=>{
     toast('Profil mis à jour');
   }catch(e){toast('Erreur : '+e.message,false);}
 };
+function uploadWithTimeout(storageRef,file,timeoutMs=30000){
+  return new Promise((resolve,reject)=>{
+    const task=uploadBytesResumable(storageRef,file);
+    const timer=setTimeout(()=>{task.cancel();reject(new Error('Délai dépassé. Vérifie ta connexion.'));},timeoutMs);
+    task.on('state_changed',null,
+      err=>{clearTimeout(timer);reject(err);},
+      ()=>{clearTimeout(timer);resolve(task.snapshot);}
+    );
+  });
+}
 window.uploadPhoto=async input=>{
   if(!input.files[0]||!me)return;
-  const msg=document.getElementById('moi-upl');msg.style.display='block';
+  const msg=document.getElementById('moi-upl');
+  msg.textContent='⬆ Envoi en cours…';
+  msg.style.display='block';
   try{
     const r=sRef(storage,`avatars/${me.uid}`);
-    await uploadBytes(r,input.files[0]);
+    await uploadWithTimeout(r,input.files[0]);
     const url=await getDownloadURL(r);
     await updateDoc(doc(db,'users',me.uid),{photo_url:url});
     await updateProfile(me,{photoURL:url});
     setAv(document.getElementById('moi-av'),url,'');
     setAv(document.getElementById('nav-av'),url,'');
-    msg.style.display='none';toast('Photo mise à jour');
-  }catch(e){msg.style.display='none';toast('Erreur upload : '+e.message,false);}
+    msg.style.display='none';
+    toast('Photo mise à jour');
+  }catch(e){
+    msg.style.display='none';
+    const msg2=e.code==='storage/unauthorized'?'Accès refusé (règles Storage)':e.message;
+    toast('Erreur upload : '+msg2,false);
+  }
 };
 
 // ── TEAMS ─────────────────────────────────────────────────
@@ -2209,6 +2470,7 @@ window.showPage=name=>{
   if(name==='stats')loadStats();
   if(name==='moi')loadProfile();
   if(name==='equipes')loadTeamsPage();
+  if(name==='entrainement')loadTrainings();
 };
 
 window.showPage('matchs');
